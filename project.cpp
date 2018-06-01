@@ -1,4 +1,5 @@
 //version: 01.06.18 
+
 #include <iostream>
 #include <list>
 #include <vector>
