@@ -1,8 +1,11 @@
 #include <iostream>
-#include <vector>
-#include <memory>
 #include <list>
-#define MaxClients 10
+#include <vector>
+#include <memory> //for smart pointers
+#include <functional> //for std::function
+#include <algorithm>  // for std::for_each----std::find(_if)
+
+#define MaxClients 5
 
 using namespace std;
 
@@ -10,9 +13,11 @@ template<typename T>
 ostream& operator << (ostream& os,const std::vector<T>& vect){
     os << "[\n";
         for(unsigned int i=0; i < vect.size() ; i++){
-            os <<'\t' << vect[i].ipRangeStart << " ";
-            os << vect[i].ipRangeStop << " ";
+            os <<'\t' << vect[i].ipRangeStart << " <---> ";
+            os << vect[i].ipRangeStop << " --- ";
+            os<<"[";
             os << vect[i].clients;
+            os<<"]";
         if(i != vect.size()-1)
                 os << endl;
         }
@@ -20,178 +25,238 @@ ostream& operator << (ostream& os,const std::vector<T>& vect){
     return os;
 }
 
+//SM----------------------------------------------------------------------------------------->>
 typedef struct SM{
+    int subNetwork;
     std::string ipRangeStart;
     std::string ipRangeStop;
     int clients;
+    friend bool operator== ( const SM &n1, const SM &n2);
 }SM;
 
-ostream& operator << (ostream& os,const SM& sm){
-    os << "[";
-        os << sm.ipRangeStart << " ";
-        os << sm.ipRangeStop << " ";
-        os << sm.clients;
-    os << "]\n";
-    return os;
+bool operator== ( const SM &n1, const SM &n2)
+{
+        return ((n1.ipRangeStart == n2.ipRangeStart) && (n1.subNetwork == n2.subNetwork));
 }
+//END_SM------------------------------------------------------------------------------------<<
 
-
-//----------------------------------------------------------------->>
-template<class T>
-class StateMachine{
-private:
-    std::vector<SM> container_;
-public:
-    //methods
-    StateMachine(){
-        cout << "StateMachine object created.\n";
-    }
-    virtual ~StateMachine(){
-        cout << "StateMachine object destroyed.\n";
-    }
-
-    void attachSM(SM c){
-        container_.push_back(c);
-    }
-
-    void updateOneOfSM(T nrOfSM,T clients){
-        try{
-            container_.at(nrOfSM).clients += clients;
-            announceNotifier();
-        }
-        catch(const std::out_of_range& oor){
-            cout << "Out of Range error occur during the program execution : " << oor.what() << endl;
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    void announceNotifier();
-
-    std::vector<SM> getVector() const{
-        return container_;
-    }
-
-    void displayVectorContent() const{
-        cout << container_;
-    }
-};
-
-template<class T>
-std::shared_ptr<StateMachine<T>> SMPtr_ ;
-
-template<class T>
-std::shared_ptr<const StateMachine<T>> SMCPtr_;
-
-//---------------------------------------------------------------------<<
-
-
-//---------------------------------------------------------------------->>
-template<class T, class U, class Z>
-class Watcher{
-private:
-    std::list<std::shared_ptr<StateMachine<T>>> StateMachinesPtr_;
-    U message_;
-    Z relevance_;
-public:
-    //methods
-    Watcher(){
-        cout << "Watcher object created.\n";
-    }
-    virtual ~Watcher(){
-        cout << "Watcher object destroyed.\n";
-    }
-
-    void print() const{
-        cout << "Watcher(s) was announced!\n";
-    }
-};
-
-template<class T, class U, class Z>
-std::shared_ptr<Watcher<T,U,Z>> watcherPtr_;
-
-template<class T, class U, class Z>
-std::shared_ptr<const Watcher<T,U,Z>> watcherCPtr_;
-//--------------------------------------------------------------------------<<
-
-
-//--------------------------------------------------------------------------->>
-template<class T, class U, class Z>
+//NOTIFIER----------------------------------------------------------------------------------------------------------->>
+template<class T,class U, class Z>
 class Notifier{
 private:
-    std::vector<std::shared_ptr<const Watcher<T,U,Z>>> subscribers_ ;
-
+    //std::vector<std::shared_ptr<const Watcher<T,U,Z>>> _subscribers;
 public:
-    //methods
+    //Notifier(){cout << "Notifier object was created.\n";}
+    //virtual ~Notifier(){cout << "Notifier object was destroyed.\n";}
 
-    void attachSubscriber(std::shared_ptr<const Watcher<T,U,Z>> subscriber){
-        subscribers_.push_back(subscriber);
-    }
-
-    void notifyAllWatchers(){
-        cout << "I was notified! I will notify watcher(s)\n";
-        if(!subscribers_.empty()){
-            for(int i=0; i<subscribers_.size();i++){
-                subscribers_[i]->print();
-            }
-        }else{
-            cout << "There is no watcher(s)!\n";
-        }
+    void update() {
+        cout << "Notifier was announced by Watcher.From here,it's my job (^_^),Notifier said!\n";
     }
 };
+template<class T,class U,class Z>
+std::shared_ptr<Notifier<T,U,Z>> _nPtr;
 
-template<class T, class U, class Z>
-std::shared_ptr<Notifier<T,U,Z>> nPtr_;
+template<class T,class U,class Z>
+std::shared_ptr<const Notifier<T,U,Z>> _nCPtr;
+//END_NOTIFIER--------------------------------------------------------------------------------------------------------<<
 
-template<class T, class U, class Z>
-std::shared_ptr<const Notifier<T,U,Z>> nCPtr_;
-//---------------------------------------------------------------------------<<
 
-template<class T>
-void StateMachine<T>::announceNotifier(){
-    nPtr_<T,char,char>->notifyAllWatchers();
+//WATCHER----------------------------------------------------------------------------->>
+template<class T,class U,class Z>
+class Watcher{
+private:
+   // std::list<std::shared_ptr<StateMachine<T>>> _StateMachinesPtr;
+    std::vector<Notifier<T,U,Z>*> _notifiers;
+    U _message;
+    Z _relevance;
+public:
+    //Watcher(){cout << "Watcher object was created.\n";}
+    //virtual ~Watcher(){cout << "Watcher object was destroyed.\n";}
+    void announcedAllNotifiers();
+
+    void verify_SMs_State(){
+        cout << "\nWatcher was announced by StateMachine about it's change!\n";
+        announcedAllNotifiers();
+    }
+
+    void attachNotifier(Notifier<T,U,Z>* n){
+        _notifiers.push_back(n);
+    }
+};
+template<class T,class U,class Z>
+std::shared_ptr<Watcher<T,U,Z>> _watcherPtr;
+
+template<class T,class U,class Z>
+std::shared_ptr<const Watcher<T,U,Z>> _watcherCPtr;
+//END_WATCHER--------------------------------------------------------------------------<<
+
+
+//STATE_MACHINE------------------------------------------------------------------------------------------>>
+template<class T,class U,class Z>
+class StateMachine{
+private:
+    std::vector<SM> _container;
+    std::vector<Watcher<T,U,Z>*> _watchers;
+public:
+    //StateMachine(){cout << "StateMachine object was created.\n";}
+    //virtual ~StateMachine(){cout << "StateMachine object was destroyed.\n";}
+
+    void announcedAllWatchers();//body of this method is declared below
+
+    void display() const{
+        cout << _container;
+    }
+
+    void attachWatcher(Watcher<T,U,Z> *w){
+        _watchers.push_back(w);
+    }
+
+    void attachSM(SM sm){
+        _container.push_back(sm);
+    }
+
+    bool addSMClient(T nrOfSN,T nrOfSM){
+        try {
+                auto src = std::find(_container.begin(),_container.end(),_container.at(nrOfSM));
+                if(src != _container.end() && src->subNetwork == nrOfSN && src->clients < MaxClients){
+                    _container.at(nrOfSM).clients += 1;
+                }
+                else{
+                    cout << "SM >> " << nrOfSM << " << from SUB_NETWORK >> " << nrOfSN << " already has maximum number of clients.\n";
+                    cout << "Search for closer available one...\n";
+                    if(searchCloserAvailableSM(nrOfSN) == true){
+                        cout << "Client was SUCCESSFULLY added to another available SM from SUB_NETWORK >> " << nrOfSN << "!\n";
+                        return true;
+                    }else{
+                        cout << "There is NO available SM on >> " << nrOfSN << " << sub_network level!\n";
+                        return false;
+                    }
+                }
+                announcedAllWatchers();
+        }
+        catch (const std::out_of_range& oor) {
+            std::cerr << "Out of Range error: " << oor.what() << '\n';
+        }
+    }
+
+    bool searchCloserAvailableSM(T nrOfSN){
+        auto src = std::find_if(_container.begin(),_container.end(),[&nrOfSN](SM &s){
+                            if ((s.subNetwork == nrOfSN) && (s.clients < MaxClients)){
+                                return true;
+                            }else{
+                                return false;
+                            }
+                          });
+
+        if(src != _container.end()){
+            src->clients +=1;
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+};
+template<class T,class U,class Z>
+std::shared_ptr<StateMachine<T,U,Z>> _SMPtr;
+
+template<class T,class U, class Z>
+std::shared_ptr<const StateMachine<T,U,Z>> _SMCPtr;
+//END_STATE_MACHINE-------------------------------------------------------------------------------------------<<
+
+
+
+//MASTER_NETWORK------------------------------------------------------------------>>
+template<class T,class U,class Z>
+class MasterNetwork{
+private:
+    std::vector<StateMachine<T,U,Z>*> _subNetworks ;
+public:
+    //MasterNetwork(){cout << "MasterNetwork was created!\n";}
+    //virtual ~MasterNetwork(){cout << "MasterNetwork was destroyed!\n"}
+
+    void attachSubNetwork(StateMachine<T,U,Z>* sn){
+        _subNetworks.push_back(sn);
+    }
+
+    void addSNClient(T nrOfSN, T nrOfSM){ //SN = sub network, SM = state machine
+        cout << "WATCH OUT:\n";
+        cout << "code will be written as soon as possible.\n";
+    }
+
+};
+template<class T,class U,class Z>
+std::shared_ptr<MasterNetwork<T,U,Z>> _MNPtr;
+//END_MASTER_NETWORK--------------------------------------------------------------<<
+
+
+//------------------------------------------------------------------------------------------>>
+MasterNetwork<int,std::string,int> *masterNetwork = new MasterNetwork<int,std::string,int>();
+StateMachine<int,std::string,int> *stateMachine = new StateMachine<int,std::string,int>();
+Watcher<int,std::string,int> *watcher = new Watcher<int,std::string,int>();
+Notifier<int,std::string,int> *notifier = new Notifier<int,std::string,int>();
+//------------------------------------------------------------------------------------------<<
+
+
+
+template<class T,class U,class Z>
+std::function<void(StateMachine<T,U,Z>*)> SMClass_display = &StateMachine<T,U,Z>::display;
+
+template<class T,class U,class Z>
+std::function<void(Watcher<T,U,Z>*)> watcher_VSMS = &Watcher<T,U,Z>::verify_SMs_State;
+
+template<class T,class U,class Z>
+std::function<void(Notifier<T,U,Z>*)> notifierUupdate = &Notifier<T,U,Z>::update;
+
+template<class T,class U,class Z>
+void StateMachine<T,U,Z>::announcedAllWatchers(){
+    std::for_each(_watchers.begin(),_watchers.end(),[](Watcher<T,U,Z> *w){
+                    watcher_VSMS<T,U,Z>(w);
+                  });
 }
 
+template<class T,class U,class Z>
+void Watcher<T,U,Z>::announcedAllNotifiers(){
+    std::for_each(_notifiers.begin(),_notifiers.end(),[](Notifier<T,U,Z> *n){
+                    notifierUupdate<T,U,Z>(n);
+                  });
+}
 
 
 int main(){
+    _MNPtr<int,std::string,int>.reset(masterNetwork); //interface for master network object
 
-    SMCPtr_<int> = std::make_shared<const StateMachine<int>>();
-    SMPtr_<int> = std::make_shared<StateMachine<int>>();
+    _SMPtr<int,std::string,int>.reset(stateMachine);
+    _SMCPtr<int,std::string,int> = _SMPtr<int,std::string,int>;  //shared_ptr<T> is convertable to shared_ptr<const T> BUT NOT THE REVERSE
 
-    nCPtr_<int,char,char> = std::make_shared<const Notifier<int,char,char>>();
-    nPtr_<int,char,char> = std::make_shared<Notifier<int,char,char>>();
+    _watcherPtr<int,std::string,int>.reset(watcher);
+    _watcherCPtr<int,std::string,int> = _watcherPtr<int,std::string,int>;
 
-    watcherCPtr_<int,char,char> = std::make_shared<const Watcher<int,char,char>>();
-    watcherPtr_<int,char,char> = std::make_shared<Watcher<int,char,char>>();
+    _nPtr<int,std::string,int>.reset(notifier);
+    _nCPtr<int,std::string,int> = _nPtr<int,std::string,int>;
 
-    SM s1 {.ipRangeStart = "0", .ipRangeStop = "10", .clients=7};
-    SM s2 {.ipRangeStart = "11", .ipRangeStop = "21", .clients=9};
-
-    cout << s1;
-    cout << s2 << endl;
-
+    SM sm1 {.subNetwork = 0, .ipRangeStart = "172.16.254.0", .ipRangeStop = "172.16.254.9", .clients = 1};
+    SM sm2 {.subNetwork = 0, .ipRangeStart = "172.16.254.10", .ipRangeStop = "172.16.254.19", .clients = 4};
+    SM sm3 {.subNetwork = 0, .ipRangeStart = "172.16.254.20", .ipRangeStop = "172.16.254.29", .clients = 5};
 
 
+    stateMachine->attachSM(sm1);
+    _SMPtr<int,std::string,int>->attachSM(sm2);
+    _SMPtr<int,std::string,int>->attachSM(sm3);
 
-    SMPtr_<int>->attachSM(s1);
-    SMPtr_<int>->attachSM(s2);
-    cout << SMPtr_<int>->getVector() << endl;
-    SMPtr_<int>->updateOneOfSM(0,2);
-    nPtr_<int,char,char>->attachSubscriber(watcherCPtr_<int,char,char>);
-    SMPtr_<int>->updateOneOfSM(1,-2);
+    _SMPtr<int,std::string,int>->attachWatcher(watcher);
+
+    _watcherPtr<int,std::string,int>->attachNotifier(notifier);
+
+    SMClass_display<int,std::string,int>(stateMachine);
+    _SMPtr<int,std::string,int>->addSMClient(0,1); //when call addClient() method all observers will be announced
+    SMClass_display<int,std::string,int>(stateMachine);
+    _SMPtr<int,std::string,int>->addSMClient(0,1); //when call addClient() method all observers will be announced
+    SMClass_display<int,std::string,int>(stateMachine);
 
 
-    SMCPtr_<int> = SMPtr_<int>;
-    cout << SMCPtr_<int>->getVector();
-
-
+    _MNPtr<int,std::string,int>->attachSubNetwork(stateMachine);
+    _MNPtr<int,std::string,int>->addSNClient(0,1);
 
     return 0;
 }
-
-
-
-
-
-
-
