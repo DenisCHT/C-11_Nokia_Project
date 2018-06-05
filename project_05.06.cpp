@@ -1,4 +1,4 @@
-//version: 07.06.18
+//version: 05.06.18
 
 /*
 App is capable to add 1 client to a specific SubNetwork and StateMachine. If SM already has max number of clients,app will search for another
